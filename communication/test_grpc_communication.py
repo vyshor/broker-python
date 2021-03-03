@@ -29,7 +29,7 @@ from communication.powertac_communication_server import GameService, SubmitServi
 #        warn_about_grpc_not_implemented()
 from communication.pubsub.grpc_adapter import publish_pb_message
 
-@pytest.mark.skip
+# @pytest.mark.skip
 #TODO soon > cannot run this class or else the tests never complete. Some stray thread is not closing
 #If any of the tests is run, the situation occurs. If the entire class is skipped, it doesn't occur. It's odd
 class TestGrpcCommunicationServer(unittest.TestCase):
@@ -175,5 +175,5 @@ def run_in_loop(coro_or_future):
     asyncio.ensure_future(coro_or_future, loop=loop)
 
 
-if __name__ is "__main__":
+if __name__ == "__main__":
     asyncio.get_event_loop()

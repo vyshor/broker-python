@@ -1,7 +1,7 @@
 import logging
 import random
 
-from keras import Model
+from tensorflow.keras import Model
 
 from agent_components.demand.learning.data import make_sequences_from_historical, parse_usage_game_log, clear
 from util.learning_utils import ModelWriter, TbWriterHelper, get_callbacks_with_generator, get_usage_file_paths

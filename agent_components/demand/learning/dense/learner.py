@@ -1,12 +1,12 @@
 import logging
 import time
 
-from keras.layers import BatchNormalization
-from keras.layers.core import Dense, Dropout
-from keras.models import Sequential
-from keras.optimizers import sgd
-from keras.regularizers import l1_l2, l2
-from keras.utils import Sequence
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.regularizers import l1_l2, l2
+from tensorflow.keras.utils import Sequence
 
 import util.config as cfg
 from agent_components.demand.learning.preprocessing import DemandCustomerSequence, drain_generator
@@ -38,7 +38,7 @@ class Learner(StatefileCapableLearner):
             generator = DemandCustomerSequence(cfg.DEMAND_FORECAST_DISTANCE, train[0], train[1], flatten_sequences=True)
             validation_sequences = drain_generator(DemandCustomerSequence(cfg.DEMAND_FORECAST_DISTANCE, validation[0], validation[1], flatten_sequences=True), 10)
             #self.run_epoch(mdl, generator, validation_sequences, g_number, tb_writer)
-            self.fit_with_generator(mdl, generator, self.keras_callbacks, validation_set=validation_sequences)
+            self.fit_with_generator(mdl, generator, self.tensorflow.keras_callbacks, validation_set=validation_sequences)
             mw.write_model(mdl)
 
 
@@ -58,7 +58,7 @@ class Learner(StatefileCapableLearner):
         model.add(Dense(20))
         model.add(Dense(1))
         start = time.time()
-        optimizr = sgd(lr=0.03)
+        optimizr = SGD(lr=0.03)
         model.compile(loss='mae', optimizer=optimizr)
         log.info('compilation time : {}'.format(time.time() - start))
         return model

@@ -1,12 +1,12 @@
 import logging
 import time
 
-from keras.layers import BatchNormalization
-from keras.layers.core import Dense, Activation
-from keras.models import Sequential
-from keras.optimizers import sgd, SGD
-from keras.regularizers import l2
-from keras.utils import Sequence
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import Dense, Activation
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.utils import Sequence
 from sklearn import preprocessing
 
 import util.config as cfg
@@ -39,5 +39,5 @@ class DenseLearner(DemandLearner):
         model.add(Dense(24))
         model.add(Activation('linear'))
         opti = SGD(lr=0.01)
-        model.compile(loss='mse', optimizer='sgd')
+        model.compile(loss='mse', optimizer=opti)
         return model

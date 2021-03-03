@@ -6,8 +6,8 @@ import logging
 from typing import List, Tuple, Dict
 
 import numpy as np
-from keras.preprocessing.sequence import TimeseriesGenerator
-from keras.utils import Sequence
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+from tensorflow.keras.utils import Sequence
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import MinMaxScaler

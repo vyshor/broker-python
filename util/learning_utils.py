@@ -8,11 +8,11 @@ from typing import List, Union
 
 import numpy as np
 import tensorflow as tf
-from keras import Model
-from keras.callbacks import TensorBoard, TerminateOnNaN
+from tensorflow.keras import Model
+from tensorflow.keras.callbacks import TensorBoard, TerminateOnNaN
 from shutil import rmtree
 
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 
 from util.utils import deprecated
 
@@ -24,9 +24,9 @@ import util.config as cfg
 class ModelWriter:
     """Helper for Model writing. Assumes some things about the folder structure and then write the model out to disk"""
 
-    def __init__(self, model_name, fresh=True):
+    def __init__(self, model_name="default", fresh=True):
         self.model_name = model_name
-        self.storage_dir = os.path.join(cfg.MODEL_PATH, model_name)
+        self.storage_dir = os.path.join(cfg.MODEL_PATH, model_name) if cfg.MODEL_PATH else model_name
         # clearing old and overwriting
         if fresh:
             rmtree(self.storage_dir, ignore_errors=True)
@@ -69,7 +69,7 @@ class TbWriterHelper:
         os.makedirs(tensorboard_dir)
         #self.train_writer = tf.summary.FileWriter(os.path.join(tensorboard_dir, 'train'))
         #self.test_writer = tf.summary.FileWriter(os.path.join(tensorboard_dir, 'test'))
-        self.train_writer = tf.summary.FileWriter(tensorboard_dir)
+        self.train_writer = tf.summary.create_file_writer(tensorboard_dir)
         self.train_steps = 0
 
     def write_train_loss(self, loss):
@@ -91,13 +91,13 @@ class TbWriterHelper:
 
 
 
-# standard callbacks used with keras when possible
+# standard callbacks used with tensorflow.keras when possible
 def get_callbacks(model_name):
 
     return [get_tb_cb(model_name, histogram_freq=10, batch_size=32, write_grads=True, write_graph=True, write_images=True),
             TerminateOnNaN()]
 
-# standard callbacks used with keras when possible
+# standard callbacks used with tensorflow.keras when possible
 def get_callbacks_with_generator(model_name):
     return [get_tb_cb(model_name, batch_size=32, write_grads=True, write_images=True),
             TerminateOnNaN()]

@@ -1,5 +1,6 @@
 __pycache__
 venv/
+.idea/
 .ropeproject
 **/.pytest_cache
 *.h5f

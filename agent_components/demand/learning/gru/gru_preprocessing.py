@@ -1,6 +1,6 @@
 from typing import List
-from keras.preprocessing.sequence import TimeseriesGenerator
-from keras.utils import Sequence
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+from tensorflow.keras.utils import Sequence
 from sklearn import preprocessing
 import numpy as np
 

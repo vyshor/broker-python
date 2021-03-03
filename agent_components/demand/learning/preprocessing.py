@@ -8,8 +8,8 @@
 # It's also important to be able to compare the performance of the forecasting
 from typing import List, Tuple
 
-from keras.preprocessing.sequence import TimeseriesGenerator
-from keras.utils import Sequence
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+from tensorflow.keras.utils import Sequence
 import numpy as np
 from sklearn import preprocessing
 import logging

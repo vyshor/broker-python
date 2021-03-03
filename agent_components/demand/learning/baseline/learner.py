@@ -1,6 +1,6 @@
 import logging
 
-from keras.utils import Sequence
+from tensorflow.keras.utils import Sequence
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 from agent_components.demand.learning.DemandLearner import DemandLearner

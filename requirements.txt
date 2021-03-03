@@ -1,2 +1,5 @@
-numpy
-PyDispatcher
+numpy==1.19.3
+PyDispatcher~=2.0.5
+
+click~=7.1.2
+setuptools~=50.3.2

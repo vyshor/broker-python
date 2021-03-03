@@ -24,7 +24,7 @@ def calculate_running_averages(known_results: np.array):
 
     for result in known_results:
         avg = calculate_running_average(result)
-        if avg is 0 and averages:
+        if avg == 0 and averages:
             avg = averages[-1]
         averages.append(avg)
 

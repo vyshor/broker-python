@@ -9,12 +9,12 @@ setup(
         'grpcio',
         'grpcio-tools',
         'gym',
-        'h5py',
-        'keras',
-        'keras-rl',
+        'h5py==2.10.0',
+        # 'keras',
+        # 'keras-rl',
         'mypy',
         #'mypy-protbuf',
-        'numpy',
+        'numpy==1.18.5',
         'pandas',
         'PyDispatcher',
         'protobuf',
@@ -22,6 +22,7 @@ setup(
         'beautifulsoup4',
         'lxml',
         'tensorflow',
+        'tensorforce'
         ],
     extras_require = {
         'visualize':[

@@ -1,12 +1,12 @@
 import logging
 import time
 
-from keras.initializers import RandomUniform
-from keras.layers import CuDNNLSTM, Dropout, Activation
-from keras.layers.core import Dense
-from keras.models import Sequential
-from keras.optimizers import Adam
-from keras.regularizers import l2
+from tensorflow.keras.initializers import RandomUniform
+from tensorflow.keras.layers import LSTM, Dropout, Activation
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l2
 
 import util.config as cfg
 from agent_components.demand.learning.DemandLearner import DemandLearner
@@ -30,9 +30,9 @@ class LstmLearner(DemandLearner):
         model = Sequential()
         # input layer
         input_shape = (cfg.DEMAND_ONE_WEEK, 1)
-        model.add(CuDNNLSTM(168, input_shape=input_shape, kernel_regularizer=l2(0.002), return_sequences=True))
+        model.add(LSTM(168, input_shape=input_shape, kernel_regularizer=l2(0.002), return_sequences=True))
         model.add(Dropout(0.2))
-        model.add(CuDNNLSTM(50))
+        model.add(LSTM(50))
         model.add(Dense(24))
         model.add(Activation('linear'))
 

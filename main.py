@@ -91,9 +91,9 @@ def compete(continuous, demand_model, wholesale_model):
     messages_cache.subscribe()
 
     # bootstrapping models from stored data
-    model = ModelWriter(demand_model, False).load_model()
-    estimator = Estimator(model)
-    estimator.subscribe()
+    # model = ModelWriter(demand_model, False).load_model()
+    # estimator = Estimator(model)
+    # estimator.subscribe()
 
     # TODO wholesale_trader dynamic loading
     ws_agent = BaselineTrader()

@@ -85,7 +85,7 @@ def _log_normal_message(signal, msg):
     pickle.dump(msg, handler)
 
 def _log_protobuf_message(signal, msg):
-    json_ = MessageToJson(msg)
+    json_ = MessageToJson(msg, including_default_value_fields=True)
     json_ = json_.replace("\n", "") + "\n"
     handler = get_file_handler(signal, file_type="json")
     handler.write(json_)
