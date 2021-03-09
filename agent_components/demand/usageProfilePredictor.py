@@ -28,20 +28,19 @@ class UsageProfilePredictor(SignalConsumer):
     Predictor class that loads models and outputs
     1. Loads model and scalers per customer type - D
     2. Bootstrap Customer Data to produce InitialUsageProfile of 24h - D
-    3. Publish InitialUsageProfile
-    4. Subscription of new customers -> Add to existing customers
-    5. Every ts -> Publish profile usage of next 24h for existing customers
+    3. Publish InitialUsageProfile - D
+    4. Subscription of new customers -> Add to existing customers - D
+    5. Every ts -> Publish profile usage of next 24h for existing customers - D
     """
 
     def __init__(self, modelType="DNN"):
         super().__init__()
-        # self.graph = tf.get_default_graph() #required to do multi threaded tensorflow actions : https://github.com/keras-team/keras/issues/2397
         self.customer_info = {}
         self.models = {}
         self.scalers = {}
         self.seed_usage_profile = {}
         self.initial_usage_profile = {}
-        self.existing_customers = {}
+        self.existing_customers = set([])
         self.seedWeather = [0] * 336
         self.seedWeatherInitialisedCount = 0
         self.seedWeatherColumns = []
@@ -113,6 +112,8 @@ class UsageProfilePredictor(SignalConsumer):
         self.weatherPredictions[msg.currentTimeslot] = pred_weather_row
         if msg.currentTimeslot == 360:
             self._generate_init_usage_profile()
+        else:
+            self._generate_usage_profile_for_existing(msg.currentTimeslot)
 
     def _generate_init_usage_profile(self):
         for customerName in self.seed_usage_profile:
@@ -121,8 +122,20 @@ class UsageProfilePredictor(SignalConsumer):
                 row = self._transform_row_with_scalers(row, customerName)
                 row = np.array([row])
                 customerType = self._getCustomerType(customerName)
-                self.initial_usage_profile[customerName] = self.models[customerType].predict(row)[1][0] * self.population[customerName]
+                self.initial_usage_profile[customerName] = self.models[customerType].predict(row)[1][0]
+                usage_profile_data = (customerName, 360, self.initial_usage_profile)
+                dispatcher.send(signal=signals.COMP_USAGE_EST, msg=usage_profile_data)
                 print(f"Customer InitialUsage Prepared: {customerName}")
+
+    def _generate_usage_profile_for_existing(self, ts):
+        for customerName in self.existing_customers:
+            row = self._prepare_input_data(customerName, ts)
+            row = self._transform_row_with_scalers(row, customerName)
+            row = np.array([row])
+            customerType = self._getCustomerType(customerName)
+            usage_profile = self.models[customerType].predict(row)[1][0]
+            usage_profile_data = (customerName, ts, usage_profile)
+            dispatcher.send(signal=signals.COMP_USAGE_EST, msg=usage_profile_data)
 
     def _getCustomerType(self, customerName):
         return ''.join([i for i in customerName if i.isalpha()]).lower()
@@ -214,10 +227,15 @@ class UsageProfilePredictor(SignalConsumer):
         # SeedUsage
         # SeedWeather
 
-    # def handle_tariff_transaction_event(self, sender, signal: str, msg: PBTariffTransaction):
-    #     #keep track of our customers
-    #     if msg.txType is PBTxType.Value("SIGNUP") or msg.txType is PBTxType.Value("WITHDRAW"):
-    #         self.handle_customer_change(msg)
+    def handle_tariff_transaction_event(self, sender, signal: str, msg: PBTariffTransaction):
+        customerName = msg.customerInfo.name
+        if msg.txType is PBTxType.Value("SIGNUP"):
+            self.existing_customers.add(customerName)
+        elif msg.txType is PBTxType.Value("WITHDRAW"):
+            if customerName in self.existing_customers:
+                self.existing_customers.remove(customerName)
+            else:
+                print(f"Missing customer {customerName}: Cannot withdraw subscription")
 
     # def handle_customer_change(self, msg: PBTariffTransaction):
     #     """
@@ -241,7 +259,6 @@ class UsageProfilePredictor(SignalConsumer):
     #
     #     if self.customer_counts[customer] == 0:
     #         del self.customer_counts[customer]
-    #
 
 #     def handle_timeslot_complete(self, sender, signal: str, msg: PBTimeslotComplete):
 #         """Triggers an estimation round for all customers"""
@@ -249,11 +266,11 @@ class UsageProfilePredictor(SignalConsumer):
 #         # trigger learning on all customers for recently completed TS
 #         self.process_customer_new_data()
 #
-#     def handle_sim_end(self, sender, signal: str, msg: PBSimEnd):
-#         # remove all data
-#         self.usages = {}
-#         self.predictions = {}
-#         self.current_timeslot = 0
+    # def handle_sim_end(self, sender, signal: str, msg: PBSimEnd):
+    #     # remove all data
+    #     self.usages = {}
+    #     self.predictions = {}
+    #     self.current_timeslot = 0
 #
 #     def handle_usage(self, tx: PBTariffTransaction):
 #         """Every new usage that is given to the estimator is handled here. It's first scaled to the population of the
