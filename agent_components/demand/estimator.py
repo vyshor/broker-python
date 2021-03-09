@@ -24,10 +24,10 @@ class Estimator(SignalConsumer):
 
     """
 
-    def __init__(self, model):
+    def __init__(self):
         super().__init__()
-        self.graph = tf.get_default_graph() #required to do multi threaded tensorflow actions : https://github.com/keras-team/keras/issues/2397
-        self.model = model
+        # self.graph = tf.get_default_graph() #required to do multi threaded tensorflow actions : https://github.com/keras-team/keras/issues/2397
+        # self.model = model
         self.scalers = {}  # scalers can also be looked up via customer name. They scale the customer data
         self.usages: Dict[int, Dict[int,float]] = {}  # map of maps. first map --> customer_name, second map --> timeslot ID
         self.customer_counts = {} #map that stores the number of customers per customer_name

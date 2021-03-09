@@ -119,6 +119,57 @@ def compete(continuous, demand_model, wholesale_model):
         grpc_server.stop(0)
 
 
+def new_compete():
+    """take part in a powertac competition"""
+
+    from agent_components.wholesale.environments.WholesaleEnvironmentManager import WholesaleEnvironmentManager
+    from agent_components.wholesale.learning.baseline import BaselineTrader
+    from agent_components.demand.readConsumer import ReadConsumer
+    from agent_components.demand.usageProfilePredictor import UsageProfilePredictor
+    from agent_components.demand.estimator import Estimator
+    from agent_components.tariffs.publisher import TariffPublisher
+    from util.learning_utils import ModelWriter
+    from communication import messages_cache
+
+    # bootstrapping logging and caching of messages
+    messages_cache.subscribe()
+
+    # bootstrapping models from stored data
+    # model = ModelWriter(demand_model, False).load_model()
+    # readConsumer = ReadConsumer()
+    # readConsumer.subscribe()
+
+    usageProfilePredictor = UsageProfilePredictor()
+    usageProfilePredictor.subscribe()
+
+    # estimator = Estimator()
+    # estimator.subscribe()
+
+    # TODO wholesale_trader dynamic loading
+    # ws_agent = BaselineTrader()
+    # wholesale = WholesaleEnvironmentManager(ws_agent, None)
+    # wholesale.subscribe()
+
+    # simple tariff mirroring
+    # publisher = TariffPublisher()
+    # publisher.subscribe()
+
+    # GRPC comm with powertac
+    import communication.powertac_communication_server as grpc_com
+
+    # subscribing to outgoing messages
+    grpc_com.submit_service.subscribe()
+
+    # main comm thread
+    grpc_server = grpc_com.serve()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        grpc_server.stop(0)
+
+
+
 @cli.command()
 def about():
     """just prints out some text"""
@@ -161,5 +212,6 @@ script_call = click.CommandCollection(sources=[cli])
 if __name__ == '__main__':
     print("calling directly")
     # configure_logging(['file'], 'DEBUG')
-    cli()
-    script_call()
+    # cli()
+    # script_call()
+    new_compete()

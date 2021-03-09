@@ -17,7 +17,7 @@ LOG_LEVEL          = "INFO"
 AGENT_COMPONENTS   = ['demand', 'tariff', 'wholesale', 'balancing']
 STATE_FILES_ROOT   = "./data/state_files"
 
-GRPC_PORT = 50053
+GRPC_PORT = 50051
 
 ###############################
 # Component configuration
