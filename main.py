@@ -127,8 +127,8 @@ def new_compete():
     from agent_components.demand.readConsumer import ReadConsumer
     from agent_components.demand.usageProfilePredictor import UsageProfilePredictor
     from agent_components.demand.estimator import Estimator
-    from agent_components.tariffs.publisher import TariffPublisher
     from agent_components.tariffs.secureTariffSubAgent import SecureTariffSubAgent
+    from agent_components.tariffs.tariffUtilityPredictor import TariffUtilityPredictor
     from util.learning_utils import ModelWriter
     from communication import messages_cache
 
@@ -142,6 +142,9 @@ def new_compete():
 
     usageProfilePredictor = UsageProfilePredictor()
     usageProfilePredictor.subscribe()
+
+    tariffUtilityPredictor = TariffUtilityPredictor()
+    tariffUtilityPredictor.subscribe()
 
     secureTariffSubAgent = SecureTariffSubAgent()
     secureTariffSubAgent.subscribe()

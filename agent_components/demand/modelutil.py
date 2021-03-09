@@ -7,9 +7,9 @@ from tensorflow.keras.layers import Flatten, Dense, Dropout, Conv2D, MaxPool2D, 
 tf.keras.backend.set_floatx('float64')
 tf.get_logger().setLevel('WARNING')
 # tf.compat.v1.disable_eager_execution()
-y_vars = ["UsePower-{}".format(i) for i in range(7*24)]
+# y_vars = ["UsePower-{}".format(i) for i in range(7*24)]
 
-def file2dataset_pipeline(filepath):
+def file2dataset_pipeline(filepath, y_vars):
     df = pd.read_csv(filepath)
     X = np.array(df.drop(columns=y_vars))
     y = np.array(df[y_vars])
@@ -88,7 +88,7 @@ class DNN_Structure(Model):
 #     return model
 
 
-def load_model_init(model_ckpt_file, data_csv_file):
+def load_model_init(model_ckpt_file, data_csv_file, y_vars):
 
     # _, test_step = init_train_test_step()
     # EPOCHS = 1
@@ -97,7 +97,7 @@ def load_model_init(model_ckpt_file, data_csv_file):
     # SEED = 42
 
     # MODEL_CKPT_FILE = 'models/test.ckpt'
-    X, y = file2dataset_pipeline(data_csv_file)
+    X, y = file2dataset_pipeline(data_csv_file, y_vars)
     model = DNN_Structure(X, y)
     # model = train_model(model, X, y, test_step, EPOCHS, SEED, OPTIMIZER, LEARNING_RATE)
     model.load_weights(model_ckpt_file)

@@ -8,6 +8,8 @@
 PT_IN_STATE_LINE     = "PT_IN_STATE_LINE"     # state lines read and destined for parsing
 COMP_SUB_EST         = "COMP_SUB_EST"         # subscription estimation by agent component
 COMP_USAGE_EST       = "COMP_USAGE_EST"       # usage estimations by agent component
+POSS_TARIFF_SPEC     = "POSS_TARIFF_SPEC"       # possible tariff specification
+UTILITY_EST          = "UTILITY_EST"          # utility estimation based on tariff specification
 OUT_PB_ORDER         = "OUT_PB_ORDER"         # wholesale trading action by agent component
 OUT_PB_TARIFF_REVOKE = "OUT_PB_TARIFF_REVOKE"
 OUT_PB_TARIFF_SPECIFICATION = "OUT_PB_TARIFF_SPECIFICATION"

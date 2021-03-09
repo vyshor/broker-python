@@ -52,14 +52,14 @@ class UsageProfilePredictor(SignalConsumer):
         for (modeltype, customerType, modelPath) in listAvailableModels(USAGE_PROFILE_MODELS_FOLDER, modelType).values():
             single_csv_path = os.path.join(USAGE_PROFILE_SINGLE_CSV_FOLDER, f"{customerType}.csv")
             csv_path = single_csv_path
-            self.models[customerType] = load_model_init(modelPath, single_csv_path)
+            self.models[customerType] = load_model_init(modelPath, single_csv_path, list(self.y_vars))
 
         self.columnNames = [col for col in pd.read_csv(csv_path).columns if col not in self.y_vars]
         for customerType, customerScalers in listAvailableScalers(USAGE_PROFILE_SCALERS_FOLDER, self.columnNames).items():
             self.scalers[customerType] = {}
             for (scaler_col, _customerType, scalerPath) in customerScalers.values():
                 self.scalers[_customerType][scaler_col] = joblib.load(scalerPath)
-        print("Finishing loading the models")
+        print("Finishing loading UsageProfilePredictor models")
 
     def subscribe(self):
         """Subscribes this object to the events of interest to the estimator"""

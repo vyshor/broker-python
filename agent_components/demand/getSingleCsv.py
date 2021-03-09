@@ -1,8 +1,8 @@
 import pandas as pd
 import os
 
-ML_DATA_FOLDER = 'D:\\Users\\X\\Desktop\\FYP\\codes\\analysis_data\\ml_data\\cust_usage5'
-USAGE_PROFILE_SINGLE_CSV_FOLDER = "D:\\Users\\X\\Desktop\\FYP\\codes\\analysis_data\\single_csv\\cust_usage5"
+ML_DATA_FOLDER = 'D:\\Users\\X\\Desktop\\FYP\\codes\\analysis_data\\ml_data\\utility2'
+USAGE_PROFILE_SINGLE_CSV_FOLDER = "D:\\Users\\X\\Desktop\\FYP\\codes\\analysis_data\\single_csv\\utility2"
 
 for itemtype in os.listdir(ML_DATA_FOLDER):
     folderPath = os.path.join(ML_DATA_FOLDER, itemtype)

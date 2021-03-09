@@ -23,12 +23,14 @@ class SecureTariffSubAgent(SignalConsumer):
         # dispatcher.connect(self.handle_tariff_spec, signals.PB_TARIFF_SPECIFICATION)
         # dispatcher.connect(self.handle_tariff_revoke, signals.PB_TARIFF_REVOKE)
         dispatcher.connect(self.handle_usage_profile, signals.COMP_USAGE_EST)
-        log.info("tariff publisher is listenening")
+        dispatcher.connect(self.handle_utility_estimation, signals.UTILITY_EST)
+        log.info("tariff publisher is listening")
 
     def unsubscribe(self):
         # dispatcher.disconnect(self.handle_tariff_spec, signals.PB_TARIFF_SPECIFICATION)
         # dispatcher.disconnect(self.handle_tariff_revoke, signals.PB_TARIFF_REVOKE)
         dispatcher.disconnect(self.handle_usage_profile, signals.COMP_USAGE_EST)
+        dispatcher.disconnect(self.handle_utility_estimation, signals.UTILITY_EST)
 
     def handle_usage_profile(self, sender, signal: str, msg: tuple):
         customerName, predicted_ts, usage_profile = msg
@@ -39,7 +41,9 @@ class SecureTariffSubAgent(SignalConsumer):
             self.updated_usage_profile[customerName] = usage_profile
             print(f"Received Updated Usage Profile: {customerName} | Timeslot: {predicted_ts}")
 
-
+    def handle_utility_estimation(self, sender, signal: str, msg: tuple):
+        spec_id, customerName, utility = msg
+        print(f"Received Utility Est: {utility} | Spec_id: {spec_id}")
 
 # def handle_tariff_spec(self, sender, signal: str, msg: PBTariffSpecification):
     #     """Handling incoming specs. Let's just clone the babies!"""
