@@ -10,6 +10,7 @@ COMP_SUB_EST         = "COMP_SUB_EST"         # subscription estimation by agent
 COMP_USAGE_EST       = "COMP_USAGE_EST"       # usage estimations by agent component
 POSS_TARIFF_SPEC     = "POSS_TARIFF_SPEC"       # possible tariff specification
 UTILITY_EST          = "UTILITY_EST"          # utility estimation based on tariff specification
+SUPPLY_EST          = "SUPPLY_EST"          # supply estimation based on weather
 OUT_PB_ORDER         = "OUT_PB_ORDER"         # wholesale trading action by agent component
 OUT_PB_TARIFF_REVOKE = "OUT_PB_TARIFF_REVOKE"
 OUT_PB_TARIFF_SPECIFICATION = "OUT_PB_TARIFF_SPECIFICATION"

@@ -19,9 +19,9 @@ from agent_components.demand.modelsearch import listAvailableModels, listAvailab
 from agent_components.demand.modelutil import load_model_init
 
 log = logging.getLogger(__name__)
-USAGE_PROFILE_MODELS_FOLDER = "D:\\Users\\X\\Desktop\\FYP\\codes\\past-saved-data\\model_utility2_ckpts"
-USAGE_PROFILE_SCALERS_FOLDER = "D:\\Users\\X\\Desktop\\FYP\\codes\\scalers\\utilityscalers2"
-USAGE_PROFILE_SINGLE_CSV_FOLDER = "D:\\Users\\X\\Desktop\\FYP\\codes\\analysis_data\\single_csv\\utility2"
+UTILITY_MODELS_FOLDER = "D:\\Users\\X\\Desktop\\FYP\\codes\\past-saved-data\\model_utility2_ckpts"
+UTILITY_SCALERS_FOLDER = "D:\\Users\\X\\Desktop\\FYP\\codes\\scalers\\utilityscalers2"
+UTILITY_SINGLE_CSV_FOLDER = "D:\\Users\\X\\Desktop\\FYP\\codes\\analysis_data\\single_csv\\utility2"
 
 class TariffUtilityPredictor(SignalConsumer):
     """
@@ -41,13 +41,13 @@ class TariffUtilityPredictor(SignalConsumer):
         self.y_vars = set(["Utility"])
 
         csv_path = ''
-        for (modeltype, customerType, modelPath) in listAvailableModels(USAGE_PROFILE_MODELS_FOLDER, modelType).values():
-            single_csv_path = os.path.join(USAGE_PROFILE_SINGLE_CSV_FOLDER, f"{customerType}.csv")
+        for (modeltype, customerType, modelPath) in listAvailableModels(UTILITY_MODELS_FOLDER, modelType).values():
+            single_csv_path = os.path.join(UTILITY_SINGLE_CSV_FOLDER, f"{customerType}.csv")
             csv_path = single_csv_path
             self.models[customerType] = load_model_init(modelPath, single_csv_path, list(self.y_vars))
 
         self.columnNames = [col for col in pd.read_csv(csv_path).columns if col not in self.y_vars]
-        for customerType, customerScalers in listAvailableScalers(USAGE_PROFILE_SCALERS_FOLDER, self.columnNames).items():
+        for customerType, customerScalers in listAvailableScalers(UTILITY_SCALERS_FOLDER, self.columnNames).items():
             self.scalers[customerType] = {}
             for (scaler_col, _customerType, scalerPath) in customerScalers.values():
                 self.scalers[_customerType][scaler_col] = joblib.load(scalerPath)

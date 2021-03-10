@@ -126,6 +126,7 @@ def new_compete():
     from agent_components.wholesale.learning.baseline import BaselineTrader
     from agent_components.demand.readConsumer import ReadConsumer
     from agent_components.demand.usageProfilePredictor import UsageProfilePredictor
+    from agent_components.demand.supplyCurvePredictor import SupplyCurvePredictor
     from agent_components.demand.estimator import Estimator
     from agent_components.tariffs.secureTariffSubAgent import SecureTariffSubAgent
     from agent_components.tariffs.tariffUtilityPredictor import TariffUtilityPredictor
@@ -145,6 +146,9 @@ def new_compete():
 
     tariffUtilityPredictor = TariffUtilityPredictor()
     tariffUtilityPredictor.subscribe()
+
+    supplyCurvePredictor = SupplyCurvePredictor()
+    supplyCurvePredictor.subscribe()
 
     secureTariffSubAgent = SecureTariffSubAgent()
     secureTariffSubAgent.subscribe()
