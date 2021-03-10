@@ -127,6 +127,7 @@ def new_compete():
     from agent_components.demand.readConsumer import ReadConsumer
     from agent_components.demand.usageProfilePredictor import UsageProfilePredictor
     from agent_components.demand.supplyCurvePredictor import SupplyCurvePredictor
+    from agent_components.demand.balancingActSubAgent import BalancingActSubAgent
     from agent_components.demand.estimator import Estimator
     from agent_components.tariffs.secureTariffSubAgent import SecureTariffSubAgent
     from agent_components.tariffs.tariffUtilityPredictor import TariffUtilityPredictor
@@ -153,6 +154,9 @@ def new_compete():
     secureTariffSubAgent = SecureTariffSubAgent()
     secureTariffSubAgent.subscribe()
 
+    balancingActSubAgent = BalancingActSubAgent()
+    balancingActSubAgent.subscribe()
+
     # estimator = Estimator()
     # estimator.subscribe()
 
@@ -170,6 +174,8 @@ def new_compete():
 
     # subscribing to outgoing messages
     grpc_com.submit_service.subscribe()
+
+    print("All is ready to go!")
 
     # main comm thread
     grpc_server = grpc_com.serve()

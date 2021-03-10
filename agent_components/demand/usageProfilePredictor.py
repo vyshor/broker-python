@@ -63,9 +63,9 @@ class UsageProfilePredictor(SignalConsumer):
 
     def subscribe(self):
         """Subscribes this object to the events of interest to the estimator"""
-        # dispatcher.connect(self.handle_tariff_transaction_event, signals.PB_TARIFF_TRANSACTION)
         # dispatcher.connect(self.handle_timeslot_complete, signals.PB_TIMESLOT_COMPLETE)
         # dispatcher.connect(self.handle_sim_end, signals.PB_SIM_END)
+        dispatcher.connect(self.handle_tariff_transaction_event, signals.PB_TARIFF_TRANSACTION)
         dispatcher.connect(self.handle_customer_bootstrap_data_event, signals.PB_CUSTOMER_BOOTSTRAP_DATA)
         dispatcher.connect(self.handle_weather_report_event, signals.PB_WEATHER_REPORT)
         dispatcher.connect(self.handle_weather_forecast_event, signals.PB_WEATHER_FORECAST)
@@ -73,9 +73,9 @@ class UsageProfilePredictor(SignalConsumer):
         log.info("estimator is listening!")
 
     def unsubscribe(self):
-        # dispatcher.disconnect(self.handle_tariff_transaction_event, signals.PB_TARIFF_TRANSACTION)
         # dispatcher.disconnect(self.handle_timeslot_complete, signals.PB_TIMESLOT_COMPLETE)
         # dispatcher.disconnect(self.handle_sim_end, signals.PB_SIM_END)
+        dispatcher.disconnect(self.handle_tariff_transaction_event, signals.PB_TARIFF_TRANSACTION)
         dispatcher.disconnect(self.handle_customer_bootstrap_data_event, signals.PB_CUSTOMER_BOOTSTRAP_DATA)
         dispatcher.disconnect(self.handle_weather_report_event, signals.PB_WEATHER_REPORT)
         dispatcher.disconnect(self.handle_weather_forecast_event, signals.PB_WEATHER_FORECAST)
@@ -135,7 +135,7 @@ class UsageProfilePredictor(SignalConsumer):
             customerType = self._getCustomerType(customerName)
             usage_profile = self.models[customerType].predict(row)[1][0]
             usage_profile_data = (customerName, ts, usage_profile)
-            dispatcher.send(signal=signals.COMP_USAGE_EST, msg=usage_profile_data)
+            dispatcher.send(signal=signals.EXISTING_USAGE_EST, msg=usage_profile_data)
 
     def _getCustomerType(self, customerName):
         return ''.join([i for i in customerName if i.isalpha()]).lower()

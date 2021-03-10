@@ -7,7 +7,8 @@
 # These are names for signals that can be subscribed to.
 PT_IN_STATE_LINE     = "PT_IN_STATE_LINE"     # state lines read and destined for parsing
 COMP_SUB_EST         = "COMP_SUB_EST"         # subscription estimation by agent component
-COMP_USAGE_EST       = "COMP_USAGE_EST"       # usage estimations by agent component
+COMP_USAGE_EST       = "COMP_USAGE_EST"       # usage estimations of all customers by agent component
+EXISTING_USAGE_EST   = "EXISTING_USAGE_EST"   # usage estimations of existing customers by agent component
 POSS_TARIFF_SPEC     = "POSS_TARIFF_SPEC"       # possible tariff specification
 UTILITY_EST          = "UTILITY_EST"          # utility estimation based on tariff specification
 SUPPLY_EST          = "SUPPLY_EST"          # supply estimation based on weather

@@ -50,6 +50,7 @@ class ReadConsumer(SignalConsumer):
         dispatcher.disconnect(self.handle_competition_event, signals.PB_COMPETITION)
 
     def handle_competition_event(self, sender, signal: str, msg: PBCompetition):
+        # print(msg.simulationBaseTime)
         return
         print(msg)
         for customer in msg.customers:
