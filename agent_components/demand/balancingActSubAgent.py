@@ -159,7 +159,7 @@ class BalancingActSubAgent(SignalConsumer):
 
 
     def handle_timeslot_complete(self, sender, signal: str, msg: PBTimeslotComplete):
-        self.current_datetime += datetime.timedelta(hours=1)
+        self.current_datetime = self.current_datetime + datetime.timedelta(hours=1)
         self.current_ts = msg.timeslotIndex + 1
         for customerName, load in self.obtained_load.items():
             load.pop_left()

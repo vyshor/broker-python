@@ -65,13 +65,13 @@ class TariffUtilityPredictor(SignalConsumer):
         dispatcher.disconnect(self.handle_poss_tariff_spec, signals.POSS_TARIFF_SPEC)
 
     def handle_poss_tariff_spec(self, sender, signal: str, msg: tuple):
-        spec_id, customerName, spec_dict = msg
+        spec_id, customerName, spec_row = msg
         # Do prediction
-        row = self._prepare_input_data(customerName, spec_dict)
+        row = self._prepare_input_data(customerName, spec_row)
         row = self._transform_row_with_scalers(row, customerName)
         row = np.array([row])
         customerType = self._getCustomerType(customerName)
-        utility = self.models[customerType].predict(row)[1][0]
+        utility = self.models[customerType].predict(row)[1][0][0]
         utility_data = (spec_id, customerName, utility)
         dispatcher.send(signal=signals.UTILITY_EST, msg=utility_data)
 
@@ -100,16 +100,16 @@ class TariffUtilityPredictor(SignalConsumer):
             row[idx] = self.scalers[customerType][col].transform(np.array([row[idx]]).reshape(1, -1))[0][0]
         return row
 
-    def _prepare_input_data(self, customerName, spec_dict):
+    def _prepare_input_data(self, customerName, spec_row):
         if customerName not in self.prepared_customer_info_columns:
             print(f"Unable to find customer info for utility estimation {customerName}")
 
-        row = []
-        for col in self.columnNames:
-            if col in spec_dict:
-                row.append(spec_dict[col])
-            else:
-                break
+        row = spec_row.copy()
+        # for col in self.columnNames:
+        #     if col in spec_dict:
+        #         row.append(spec_dict[col])
+        #     else:
+        #         break
         row += self.prepared_customer_info_columns[customerName]
         return row
 

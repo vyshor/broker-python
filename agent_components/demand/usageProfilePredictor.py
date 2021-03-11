@@ -125,7 +125,7 @@ class UsageProfilePredictor(SignalConsumer):
                 self.initial_usage_profile[customerName] = self.models[customerType].predict(row)[1][0]
                 usage_profile_data = (customerName, 360, self.initial_usage_profile)
                 dispatcher.send(signal=signals.COMP_USAGE_EST, msg=usage_profile_data)
-                print(f"Customer InitialUsage Prepared: {customerName}")
+                # print(f"Customer InitialUsage Prepared: {customerName}")
 
     def _generate_usage_profile_for_existing(self, ts):
         for customerName in self.existing_customers:

@@ -79,7 +79,7 @@ class SupplyCurvePredictor(SignalConsumer):
                 bspline_dict[col] = bsplineCoefficients[col_idx]
             bsplineCoefficients_data = (future_ts, msg.currentTimeslot, bspline_dict)
             dispatcher.send(signal=signals.SUPPLY_EST, msg=bsplineCoefficients_data)
-            print(f"Supply Est Prepared: Future Timeslot {future_ts}: Current Timeslot: {msg.currentTimeslot}")
+            # print(f"Supply Est Prepared: Future Timeslot {future_ts}: Current Timeslot: {msg.currentTimeslot}")
 
 
     def _getCustomerType(self, customerName):

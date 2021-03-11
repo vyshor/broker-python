@@ -1,12 +1,16 @@
 from google.protobuf.json_format import MessageToJson, Parse
 from pydispatch import dispatcher
+import numpy as np
+import datetime
+from collections import deque
 
 import util.config as cfg
-from communication.grpc_messages_pb2 import PBTariffSpecification, PBTariffRevoke
+from communication.grpc_messages_pb2 import PBTariffSpecification, PBTariffRevoke, PBCustomerBootstrapData, PBCompetition, PBTimeslotComplete, PBCustomerInfo
 from communication.powertac_communication_server import submit_service
 from communication.pubsub import signals
 from communication.pubsub.SignalConsumer import SignalConsumer
 from util import id_generator
+from scipy.interpolate import BSpline
 
 
 import logging
@@ -17,26 +21,102 @@ class SecureTariffSubAgent(SignalConsumer):
         super().__init__()
         self.initial_usage_profile = {}
         self.updated_usage_profile = {}
-
+        self.current_datetime = None
+        self.total_consumption_week_profile = np.array([0] * 168)
+        self.current_ts = 360
+        self.bspline = {}
+        self.supply_cols = ["BsplineCoeff-0-{}".format(i) for i in range(3)] + ["BsplineCoeff-{}".format(i) for i in range(100, 1600, 100)] + ["BsplineCoeff-1600-{}".format(i) for i in range(3)]
+        self.supply_knots = np.array([0] * 3 + [i for i in range(100, 1600, 100)] + [1600] * 3)
+        self.next_24h_total_usage = None
+        self.sold_for_next_24h = deque([0] * 24)
+        self.est_remaining_usage_for_next_24h = None
+        self.number_of_customers = -1
+        self.customer_bootstrapped = 0
+        self.current_min_price = 9999999999
+        self.current_max_price = 0
+        self.tariff_spec_tries = 1
+        self.customerTypes2customers = {}
+        self.spec_info = {}
 
     def subscribe(self):
         # dispatcher.connect(self.handle_tariff_spec, signals.PB_TARIFF_SPECIFICATION)
         # dispatcher.connect(self.handle_tariff_revoke, signals.PB_TARIFF_REVOKE)
+        dispatcher.connect(self.handle_competition_event, signals.PB_COMPETITION)
+        dispatcher.connect(self.handle_timeslot_complete, signals.PB_TIMESLOT_COMPLETE)
+        dispatcher.connect(self.handle_customer_bootstrap_data_event, signals.PB_CUSTOMER_BOOTSTRAP_DATA)
         dispatcher.connect(self.handle_usage_profile, signals.COMP_USAGE_EST)
         dispatcher.connect(self.handle_utility_estimation, signals.UTILITY_EST)
+        dispatcher.connect(self.handle_supply_estimation, signals.SUPPLY_EST)
         log.info("tariff publisher is listening")
 
     def unsubscribe(self):
         # dispatcher.disconnect(self.handle_tariff_spec, signals.PB_TARIFF_SPECIFICATION)
         # dispatcher.disconnect(self.handle_tariff_revoke, signals.PB_TARIFF_REVOKE)
+        dispatcher.disconnect(self.handle_competition_event, signals.PB_COMPETITION)
+        dispatcher.disconnect(self.handle_timeslot_complete, signals.PB_TIMESLOT_COMPLETE)
+        dispatcher.disconnect(self.handle_customer_bootstrap_data_event, signals.PB_CUSTOMER_BOOTSTRAP_DATA)
         dispatcher.disconnect(self.handle_usage_profile, signals.COMP_USAGE_EST)
         dispatcher.disconnect(self.handle_utility_estimation, signals.UTILITY_EST)
+        dispatcher.disconnect(self.handle_supply_estimation, signals.SUPPLY_EST)
+
+    def handle_competition_event(self, sender, signal: str, msg: PBCompetition):
+        customers = msg.customers
+        self.current_datetime = datetime.datetime.fromtimestamp(msg.simulationBaseTime/1000.0) + datetime.timedelta(days=15)
+        self.number_of_customers = len(customers)
+        for customer in customers:
+            customerPowerType = customer.powerType.label
+            if customerPowerType not in self.customerTypes2customers:
+                self.customerTypes2customers[customerPowerType] = set([])
+            self.customerTypes2customers[customerPowerType].add(customer.name)
+
+    def handle_customer_bootstrap_data_event(self, sender, signal: str, msg: PBCustomerBootstrapData):
+        two_weeks_ago = self.current_datetime - datetime.timedelta(days=14)
+        datetime_idx = (two_weeks_ago.weekday() * 24) + two_weeks_ago.hour
+        two_weeks_usage = np.array(msg.netUsage)
+        for i in range(168):
+            week_usage_idx = (datetime_idx + i) % 168
+            self.total_consumption_week_profile[week_usage_idx] += np.mean(two_weeks_usage[i::168])
+        self.customer_bootstrapped += 1
+        if self.number_of_customers == self.customer_bootstrapped:
+            current_datetime_idx = (self.current_datetime.weekday() * 24) + self.current_datetime.hour
+            adjusted_next_24h_total_usage = self.total_consumption_week_profile[current_datetime_idx+1:current_datetime_idx+25] * np.array([i/24 for i in range(1, 25)])
+            self.next_24h_total_usage = deque(adjusted_next_24h_total_usage * -1)
+            self.est_remaining_usage_for_next_24h = np.array(self.next_24h_total_usage) - np.array(self.sold_for_next_24h)
+            self._update_min_max_price()
+
+    def _update_min_max_price(self):
+        if self.current_ts not in self.bspline or len(self.bspline[self.current_ts]) != 24:
+            return
+        for ts_idx, remaining_usage in enumerate(self.est_remaining_usage_for_next_24h):
+            est_qty_demanded = remaining_usage / (ts_idx+1)
+            print(f"Future timeslot: {ts_idx}")
+            print(f"Est Qty Demanded: {est_qty_demanded}")
+            est_price = self.bspline[self.current_ts][ts_idx+1](est_qty_demanded)
+            print(f"Est Price: {est_price}")
+            self.current_min_price = min(est_price, self.current_min_price)
+            self.current_max_price = max(est_price, self.current_max_price)
+        self._produce_tariff_spec()
+
+    def _produce_tariff_spec(self):
+        for powerType, customers in self.customerTypes2customers.items():
+            for _ in range(self.tariff_spec_tries):
+                proposed_rates = np.random.uniform(self.current_min_price, self.current_max_price, size=168) * -1
+                minDuration = 0
+                signUpPayment = 0
+                earlyWithdrawPayment = 0
+                periodicPayment = 0
+                spec_row = list(proposed_rates) + [minDuration, signUpPayment, earlyWithdrawPayment, periodicPayment]
+                for customerName in customers:
+                    spec_id = id_generator.create_id()
+                    spec_tup = spec_id, customerName, spec_row
+                    self.spec_info[spec_id] = spec_tup
+                    dispatcher.send(signal=signals.POSS_TARIFF_SPEC, msg=spec_tup)
 
     def handle_usage_profile(self, sender, signal: str, msg: tuple):
         customerName, predicted_ts, usage_profile = msg
         if predicted_ts == 360:
             self.initial_usage_profile[customerName] = usage_profile
-            print(f"Received Initial Usage Profile: {customerName}")
+            # print(f"Received Initial Usage Profile: {customerName}")
         else:
             self.updated_usage_profile[customerName] = usage_profile
             print(f"Received Updated Usage Profile: {customerName} | Timeslot: {predicted_ts}")
@@ -44,6 +124,27 @@ class SecureTariffSubAgent(SignalConsumer):
     def handle_utility_estimation(self, sender, signal: str, msg: tuple):
         spec_id, customerName, utility = msg
         print(f"Received Utility Est: {utility} | Spec_id: {spec_id}")
+
+    def handle_supply_estimation(self, sender, signal: str, msg: tuple):
+        future_ts_translation, ts, bspline_dict = msg
+        if ts not in self.bspline:
+            self.bspline[ts] = {}
+        coeffs = []
+        for col in self.supply_cols:
+            coeffs.append(bspline_dict[col])
+        self.bspline[ts][future_ts_translation] = BSpline(self.supply_knots, np.array(coeffs), 2)
+        self._update_min_max_price()
+
+    def handle_timeslot_complete(self, sender, signal: str, msg: PBTimeslotComplete):
+        self.current_datetime += datetime.timedelta(hours=1)
+        future_24h_datetime_idx = ((self.current_datetime.weekday() * 24) + self.current_datetime.hour + 24) % 168
+        self.current_ts = msg.timeslotIndex + 1
+        self.next_24h_total_usage.popleft()
+        self.next_24h_total_usage.append(self.total_consumption_week_profile[future_24h_datetime_idx] * -1)
+        self.sold_for_next_24h.popleft()
+        self.sold_for_next_24h.append(0)
+        self.est_remaining_usage_for_next_24h = np.array(self.next_24h_total_usage) - np.array(self.sold_for_next_24h)
+        print(f"New timeslot: {self.current_ts}")
 
 # def handle_tariff_spec(self, sender, signal: str, msg: PBTariffSpecification):
     #     """Handling incoming specs. Let's just clone the babies!"""
