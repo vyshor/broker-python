@@ -37,6 +37,9 @@ class SecureTariffSubAgent(SignalConsumer):
         self.tariff_spec_tries = 1
         self.customerTypes2customers = {}
         self.spec_info = {}
+        self.HARD_LIMIT_FOR_QTY_DEMANDED = 1500
+        self.qty_demanded_upperbound_factor = 0.9
+        self.qty_demanded_lowerbound_factor = 0.5
 
     def subscribe(self):
         # dispatcher.connect(self.handle_tariff_spec, signals.PB_TARIFF_SPECIFICATION)
@@ -91,10 +94,12 @@ class SecureTariffSubAgent(SignalConsumer):
             est_qty_demanded = remaining_usage / (ts_idx+1)
             print(f"Future timeslot: {ts_idx}")
             print(f"Est Qty Demanded: {est_qty_demanded}")
-            est_price = self.bspline[self.current_ts][ts_idx+1](est_qty_demanded)
-            print(f"Est Price: {est_price}")
-            self.current_min_price = min(est_price, self.current_min_price)
-            self.current_max_price = max(est_price, self.current_max_price)
+            est_upper_price = self.bspline[self.current_ts][ts_idx+1](min(self.qty_demanded_upperbound_factor * est_qty_demanded, self.HARD_LIMIT_FOR_QTY_DEMANDED))
+            est_lower_price = self.bspline[self.current_ts][ts_idx+1](min(self.qty_demanded_lowerbound_factor * est_qty_demanded, self.HARD_LIMIT_FOR_QTY_DEMANDED))
+            print(f"Est Upper Price: {est_upper_price}")
+            print(f"Est Lower Price: {est_lower_price}")
+            self.current_min_price = min(est_lower_price, self.current_min_price)
+            self.current_max_price = max(est_upper_price, self.current_max_price)
         self._produce_tariff_spec()
 
     def _produce_tariff_spec(self):
