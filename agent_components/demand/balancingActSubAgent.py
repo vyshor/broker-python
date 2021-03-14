@@ -7,7 +7,7 @@ from collections import deque
 import operator
 
 import util.config as cfg
-from communication.grpc_messages_pb2 import PBTariffSpecification, PBTariffRevoke, PBOrder, PBTariffTransaction, PBTxType, PBRate, PBCompetition, PBTimeslotComplete
+from communication.grpc_messages_pb2 import PBTariffSpecification, PBTariffRevoke, PBOrder, PBTariffTransaction, PBTxType, PBRate, PBCompetition, PBTimeslotComplete, PBMarketTransaction
 from communication.powertac_communication_server import submit_service
 from communication.pubsub import signals
 from communication.pubsub.SignalConsumer import SignalConsumer
@@ -34,6 +34,7 @@ class BalancingActSubAgent(SignalConsumer):
         self.current_ts = 360
         self.has_spare_load = True
         self.spare_load = np.array([0] * 24)
+        self.elbow_cols = ["ElbowPrice-{}".format(i) for i in range(24)] + ["ElbowQty-{}".format(i) for i in range(24)]
         print("BalancingActSubAgent is ready")
 
     def subscribe(self):
@@ -41,6 +42,8 @@ class BalancingActSubAgent(SignalConsumer):
         dispatcher.connect(self.handle_timeslot_complete, signals.PB_TIMESLOT_COMPLETE)
         dispatcher.connect(self.handle_existing_customer_usage, signals.EXISTING_USAGE_EST)
         dispatcher.connect(self.handle_competition_event, signals.PB_COMPETITION)
+        dispatcher.connect(self.handle_elbow_estimation, signals.ELBOW_EST)
+        dispatcher.connect(self.handle_completed_sales, signals.PB_MARKET_TRANSACTION)
         log.info("BalancingActSubAgent is listening")
 
     def unsubscribe(self):
@@ -48,6 +51,8 @@ class BalancingActSubAgent(SignalConsumer):
         dispatcher.disconnect(self.handle_timeslot_complete, signals.PB_TIMESLOT_COMPLETE)
         dispatcher.disconnect(self.handle_existing_customer_usage, signals.EXISTING_USAGE_EST)
         dispatcher.disconnect(self.handle_competition_event, signals.PB_COMPETITION)
+        dispatcher.disconnect(self.handle_elbow_estimation, signals.ELBOW_EST)
+        dispatcher.disconnect(self.handle_completed_sales, signals.PB_MARKET_TRANSACTION)
 
     def handle_competition_event(self, sender, signal: str, msg: PBCompetition):
         self.current_datetime = datetime.datetime.fromtimestamp(msg.simulationBaseTime/1000.0) + datetime.timedelta(days=15)
@@ -77,6 +82,38 @@ class BalancingActSubAgent(SignalConsumer):
                 del self.obtained_load[customerName]
             else:
                 print(f"Missing customer {customerName}: Cannot withdraw subscription")
+
+    def _first_timeslot_bid_strat(self, ts, future_ts_translation, prices, qtys):
+        target_ts = ts + future_ts_translation
+        for i, prices in enumerate(prices):
+            self.send_order(target_ts, prices, -1 * qtys[i])
+
+    def _24h_timeslot_bid_strat(self, ts, future_ts_translation, prices, qtys):
+        target_ts = ts + future_ts_translation
+        for i, prices in enumerate(prices):
+            self.send_order(target_ts, prices, -1 * qtys[i])
+
+    def handle_completed_sales(self,  sender, signal: str, msg: PBMarketTransaction):
+        ts = msg.timeslot
+        mWh = msg.mWh
+        print(f"Bought load {mWh} at {msg.price}")
+        if ts > self.current_ts:
+            self.spare_load[ts - self.current_ts] += mWh
+            self.has_spare_load = True
+
+    def handle_elbow_estimation(self, sender, signal: str, msg: tuple):
+        future_ts_translation, ts, elbow_dict = msg
+        # if ts not in self.elbow:
+        #     self.elbow[ts] = {}
+        price_qty = []
+        for col in self.elbow_cols:
+            price_qty.append(elbow_dict[col])
+        prices, qtys = np.array(price_qty[:24]), np.array(price_qty[24:])
+        print(f"Receive Elbow Price & Qty: {price_qty}")
+        if ts == 360:
+            self._first_timeslot_bid_strat(ts, future_ts_translation, prices, qtys)
+        elif future_ts_translation == 24:
+            self._24h_timeslot_bid_strat(ts, future_ts_translation, prices, qtys)
 
     def _extract_rates_from_spec(self, rates: Iterable[PBRate]):
         return [rate.minValue for rate in rates]
@@ -152,7 +189,7 @@ class BalancingActSubAgent(SignalConsumer):
                 else:
                     # TODO: Exercise Economic Control
                     pass
-            else:
+            elif future_ts != 23: # 24 TS is handled by wholesale bought purchase
                 # Buy more for customers in deficit - As there is still time
                 for (charged_rate, deficit_amount, deficitCustomerName) in deficit_customers:
                     self.send_order(self.current_ts+future_ts+1, -1 * deficit_amount, -1 * charged_rate)  # Positive amount, Neg Rate

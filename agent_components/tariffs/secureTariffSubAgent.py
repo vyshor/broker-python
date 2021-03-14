@@ -24,9 +24,9 @@ class SecureTariffSubAgent(SignalConsumer):
         self.current_datetime = None
         self.total_consumption_week_profile = np.array([0] * 168)
         self.current_ts = 360
-        self.bspline = {}
-        self.supply_cols = ["BsplineCoeff-0-{}".format(i) for i in range(3)] + ["BsplineCoeff-{}".format(i) for i in range(100, 1600, 100)] + ["BsplineCoeff-1600-{}".format(i) for i in range(3)]
-        self.supply_knots = np.array([0] * 3 + [i for i in range(100, 1600, 100)] + [1600] * 3)
+        self.elbow = {}
+        self.elbow_cols = ["ElbowPrice-{}".format(i) for i in range(24)] + ["ElbowQty-{}".format(i) for i in range(24)]
+        # self.supply_knots = np.array([0] * 3 + [i for i in range(100, 1600, 100)] + [1600] * 3)
         self.next_24h_total_usage = None
         self.sold_for_next_24h = deque([0] * 24)
         self.est_remaining_usage_for_next_24h = None
@@ -49,7 +49,7 @@ class SecureTariffSubAgent(SignalConsumer):
         dispatcher.connect(self.handle_customer_bootstrap_data_event, signals.PB_CUSTOMER_BOOTSTRAP_DATA)
         dispatcher.connect(self.handle_usage_profile, signals.COMP_USAGE_EST)
         dispatcher.connect(self.handle_utility_estimation, signals.UTILITY_EST)
-        dispatcher.connect(self.handle_supply_estimation, signals.SUPPLY_EST)
+        dispatcher.connect(self.handle_elbow_estimation, signals.ELBOW_EST)
         log.info("tariff publisher is listening")
 
     def unsubscribe(self):
@@ -60,7 +60,7 @@ class SecureTariffSubAgent(SignalConsumer):
         dispatcher.disconnect(self.handle_customer_bootstrap_data_event, signals.PB_CUSTOMER_BOOTSTRAP_DATA)
         dispatcher.disconnect(self.handle_usage_profile, signals.COMP_USAGE_EST)
         dispatcher.disconnect(self.handle_utility_estimation, signals.UTILITY_EST)
-        dispatcher.disconnect(self.handle_supply_estimation, signals.SUPPLY_EST)
+        dispatcher.disconnect(self.handle_elbow_estimation, signals.ELBOW_EST)
 
     def handle_competition_event(self, sender, signal: str, msg: PBCompetition):
         customers = msg.customers
@@ -87,20 +87,22 @@ class SecureTariffSubAgent(SignalConsumer):
             self.est_remaining_usage_for_next_24h = np.array(self.next_24h_total_usage) - np.array(self.sold_for_next_24h)
             self._update_min_max_price()
 
-    def _update_min_max_price(self):
-        if self.current_ts not in self.bspline or len(self.bspline[self.current_ts]) != 24:
-            return
-        for ts_idx, remaining_usage in enumerate(self.est_remaining_usage_for_next_24h):
-            est_qty_demanded = remaining_usage / (ts_idx+1)
-            print(f"Future timeslot: {ts_idx}")
-            print(f"Est Qty Demanded: {est_qty_demanded}")
-            est_upper_price = self.bspline[self.current_ts][ts_idx+1](min(self.qty_demanded_upperbound_factor * est_qty_demanded, self.HARD_LIMIT_FOR_QTY_DEMANDED))
-            est_lower_price = self.bspline[self.current_ts][ts_idx+1](min(self.qty_demanded_lowerbound_factor * est_qty_demanded, self.HARD_LIMIT_FOR_QTY_DEMANDED))
-            print(f"Est Upper Price: {est_upper_price}")
-            print(f"Est Lower Price: {est_lower_price}")
-            self.current_min_price = min(est_lower_price, self.current_min_price)
-            self.current_max_price = max(est_upper_price, self.current_max_price)
-        self._produce_tariff_spec()
+    def _update_min_max_price(self, min_price, max_price):
+        self.current_min_price = min(self.current_min_price, min_price)
+        self.current_max_price = min(self.current_max_price, max_price)
+        # if self.current_ts not in self.bspline or len(self.bspline[self.current_ts]) != 24:
+        #     return
+        # for ts_idx, remaining_usage in enumerate(self.est_remaining_usage_for_next_24h):
+        #     est_qty_demanded = remaining_usage / (ts_idx+1)
+        #     print(f"Future timeslot: {ts_idx}")
+        #     print(f"Est Qty Demanded: {est_qty_demanded}")
+        #     est_upper_price = self.bspline[self.current_ts][ts_idx+1](min(self.qty_demanded_upperbound_factor * est_qty_demanded, self.HARD_LIMIT_FOR_QTY_DEMANDED))
+        #     est_lower_price = self.bspline[self.current_ts][ts_idx+1](min(self.qty_demanded_lowerbound_factor * est_qty_demanded, self.HARD_LIMIT_FOR_QTY_DEMANDED))
+        #     print(f"Est Upper Price: {est_upper_price}")
+        #     print(f"Est Lower Price: {est_lower_price}")
+        #     self.current_min_price = min(est_lower_price, self.current_min_price)
+        #     self.current_max_price = max(est_upper_price, self.current_max_price)
+        # self._produce_tariff_spec()
 
     def _produce_tariff_spec(self):
         for powerType, customers in self.customerTypes2customers.items():
@@ -130,18 +132,22 @@ class SecureTariffSubAgent(SignalConsumer):
         spec_id, customerName, utility = msg
         print(f"Received Utility Est: {utility} | Spec_id: {spec_id}")
 
-    def handle_supply_estimation(self, sender, signal: str, msg: tuple):
-        future_ts_translation, ts, bspline_dict = msg
-        if ts not in self.bspline:
-            self.bspline[ts] = {}
-        coeffs = []
-        for col in self.supply_cols:
-            coeffs.append(bspline_dict[col])
-        self.bspline[ts][future_ts_translation] = BSpline(self.supply_knots, np.array(coeffs), 2)
-        self._update_min_max_price()
+    def handle_elbow_estimation(self, sender, signal: str, msg: tuple):
+        future_ts_translation, ts, elbow_dict = msg
+        if ts not in self.elbow:
+            self.elbow[ts] = {}
+        price_qty = []
+        for col in self.elbow_cols:
+            price_qty.append(elbow_dict[col])
+        prices, qtys = np.array(price_qty[:24]), np.array(price_qty[24:])
+        if ts == 360:
+            self._first_timeslot_bid_strat(ts, future_ts_translation, prices, qtys)
+        print(f"Receive Elbow Price & Qty: {price_qty}")
+        # self.elbow[ts][future_ts_translation] = BSpline(self.supply_knots, np.array(coeffs), 2)
+        # self._update_min_max_price()
 
     def handle_timeslot_complete(self, sender, signal: str, msg: PBTimeslotComplete):
-        self.current_datetime += datetime.timedelta(hours=1)
+        self.current_datetime = self.current_datetime + datetime.timedelta(hours=1)
         future_24h_datetime_idx = ((self.current_datetime.weekday() * 24) + self.current_datetime.hour + 24) % 168
         self.current_ts = msg.timeslotIndex + 1
         self.next_24h_total_usage.popleft()

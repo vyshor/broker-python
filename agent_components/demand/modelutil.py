@@ -9,9 +9,9 @@ tf.get_logger().setLevel('WARNING')
 # tf.compat.v1.disable_eager_execution()
 # y_vars = ["UsePower-{}".format(i) for i in range(7*24)]
 
-def file2dataset_pipeline(filepath, y_vars):
+def file2dataset_pipeline(filepath, y_vars, excluded_vars):
     df = pd.read_csv(filepath)
-    X = np.array(df.drop(columns=y_vars))
+    X = np.array(df.drop(columns=y_vars+excluded_vars))
     y = np.array(df[y_vars])
     return X, y
 
@@ -88,7 +88,7 @@ class DNN_Structure(Model):
 #     return model
 
 
-def load_model_init(model_ckpt_file, data_csv_file, y_vars):
+def load_model_init(model_ckpt_file, data_csv_file, y_vars, excluded_cols=[]):
 
     # _, test_step = init_train_test_step()
     # EPOCHS = 1
@@ -97,7 +97,9 @@ def load_model_init(model_ckpt_file, data_csv_file, y_vars):
     # SEED = 42
 
     # MODEL_CKPT_FILE = 'models/test.ckpt'
-    X, y = file2dataset_pipeline(data_csv_file, y_vars)
+    X, y = file2dataset_pipeline(data_csv_file, y_vars, excluded_cols)
+    # print(X.shape)
+    # print(f"Loading {data_csv_file}")
     model = DNN_Structure(X, y)
     # model = train_model(model, X, y, test_step, EPOCHS, SEED, OPTIMIZER, LEARNING_RATE)
     model.load_weights(model_ckpt_file)
