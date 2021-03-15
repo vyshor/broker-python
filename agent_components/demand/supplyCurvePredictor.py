@@ -150,12 +150,12 @@ class SupplyCurvePredictor(SignalConsumer):
     def _prepare_input_data(self, ts, pred_weather_row):
         rotation_idx = (ts - 360) % 336
         row = [ts]
-        print(f"Length of row1: {len(row)}")
+        # print(f"Length of row1: {len(row)}")
         row += pred_weather_row
-        print(f"Length of row2: {len(row)}")
+        # print(f"Length of row2: {len(row)}")
         row += list(self.seed_total_usage[rotation_idx:]) + list(self.seed_total_usage[:rotation_idx])
-        print(f"Length of row3: {len(row)}")
+        # print(f"Length of row3: {len(row)}")
         row += self.seedWeatherColumns[rotation_idx:] + self.seedWeatherColumns[:rotation_idx]
-        print(f"Length of row: {len(row)}")
+        # print(f"Length of row: {len(row)}")
         return row
 

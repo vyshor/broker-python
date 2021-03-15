@@ -85,7 +85,7 @@ class SecureTariffSubAgent(SignalConsumer):
             adjusted_next_24h_total_usage = self.total_consumption_week_profile[current_datetime_idx+1:current_datetime_idx+25] * np.array([i/24 for i in range(1, 25)])
             self.next_24h_total_usage = deque(adjusted_next_24h_total_usage * -1)
             self.est_remaining_usage_for_next_24h = np.array(self.next_24h_total_usage) - np.array(self.sold_for_next_24h)
-            self._update_min_max_price()
+            # self._update_min_max_price()
 
     def _update_min_max_price(self, min_price, max_price):
         self.current_min_price = min(self.current_min_price, min_price)
@@ -140,11 +140,9 @@ class SecureTariffSubAgent(SignalConsumer):
         for col in self.elbow_cols:
             price_qty.append(elbow_dict[col])
         prices, qtys = np.array(price_qty[:24]), np.array(price_qty[24:])
-        if ts == 360:
-            self._first_timeslot_bid_strat(ts, future_ts_translation, prices, qtys)
-        print(f"Receive Elbow Price & Qty: {price_qty}")
+        # print(f"Receive Elbow Price & Qty: {price_qty}")
         # self.elbow[ts][future_ts_translation] = BSpline(self.supply_knots, np.array(coeffs), 2)
-        # self._update_min_max_price()
+        self._update_min_max_price(min(prices), max(prices))
 
     def handle_timeslot_complete(self, sender, signal: str, msg: PBTimeslotComplete):
         self.current_datetime = self.current_datetime + datetime.timedelta(hours=1)

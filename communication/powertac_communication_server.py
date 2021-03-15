@@ -76,15 +76,17 @@ class SubmitService(ptac_grpc.SubmitServiceServicer, SignalConsumer):
         dispatcher.connect(self.send_tariff_spec, signal=signals.OUT_PB_TARIFF_SPECIFICATION)
         dispatcher.connect(self.send_tariff_revoke, signal=signals.OUT_PB_TARIFF_REVOKE)
         log.info("submitService is listenening")
+        print("submitService is listenening")
 
     def unsubscribe(self):
         dispatcher.disconnect(self.send_order, signal=signals.OUT_PB_ORDER)
 
     def send_order(self, msg: ptac_pb2.PBOrder):
+        # print(f"Sending out order {msg}")
         self._order_queue.put_nowait(msg)
 
-    def send_tariff_revoke(self, msg: ptac_pb2.PBOrder):
-        self._order_queue.put_nowait(msg)
+    def send_tariff_revoke(self, msg: ptac_pb2.PBTariffRevoke):
+        self._tariff_revoke_queue.put_nowait(msg)
 
     def send_tariff_spec(self, msg: ptac_pb2.PBTariffSpecification):
         self._tariff_spec_queue.put_nowait(msg)
@@ -94,6 +96,7 @@ class SubmitService(ptac_grpc.SubmitServiceServicer, SignalConsumer):
         """DO NOT CALL from python. This is the API to the adapter"""
         while True:
             it = self._order_queue.get()
+            # print("SENDING order to SERVER")
             log.info("SENDING order to SERVER")
             yield it
 

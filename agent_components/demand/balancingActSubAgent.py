@@ -7,7 +7,7 @@ from collections import deque
 import operator
 
 import util.config as cfg
-from communication.grpc_messages_pb2 import PBTariffSpecification, PBTariffRevoke, PBOrder, PBTariffTransaction, PBTxType, PBRate, PBCompetition, PBTimeslotComplete, PBMarketTransaction
+from communication.grpc_messages_pb2 import PBTariffSpecification, PBTariffRevoke, PBOrder, PBTariffTransaction, PBTxType, PBRate, PBCompetition, PBTimeslotComplete, PBMarketTransaction, PBClearedTrade
 from communication.powertac_communication_server import submit_service
 from communication.pubsub import signals
 from communication.pubsub.SignalConsumer import SignalConsumer
@@ -85,18 +85,17 @@ class BalancingActSubAgent(SignalConsumer):
 
     def _first_timeslot_bid_strat(self, ts, future_ts_translation, prices, qtys):
         target_ts = ts + future_ts_translation
-        for i, prices in enumerate(prices):
-            self.send_order(target_ts, prices, -1 * qtys[i])
+        self.send_order(target_ts, qtys[0], -1 * prices[0])
 
     def _24h_timeslot_bid_strat(self, ts, future_ts_translation, prices, qtys):
         target_ts = ts + future_ts_translation
-        for i, prices in enumerate(prices):
-            self.send_order(target_ts, prices, -1 * qtys[i])
+        self.send_order(target_ts, qtys[0], -1 * prices[0])
 
     def handle_completed_sales(self,  sender, signal: str, msg: PBMarketTransaction):
         ts = msg.timeslot
         mWh = msg.mWh
-        print(f"Bought load {mWh} at {msg.price}")
+        price = msg.price
+        print(f"{ts} Bought load {mWh} at {price}")
         if ts > self.current_ts:
             self.spare_load[ts - self.current_ts] += mWh
             self.has_spare_load = True
@@ -109,7 +108,6 @@ class BalancingActSubAgent(SignalConsumer):
         for col in self.elbow_cols:
             price_qty.append(elbow_dict[col])
         prices, qtys = np.array(price_qty[:24]), np.array(price_qty[24:])
-        print(f"Receive Elbow Price & Qty: {price_qty}")
         if ts == 360:
             self._first_timeslot_bid_strat(ts, future_ts_translation, prices, qtys)
         elif future_ts_translation == 24:
@@ -120,6 +118,7 @@ class BalancingActSubAgent(SignalConsumer):
 
     def send_order(self, ts, mWh, limitPrice):
         order = PBOrder(broker=cfg.ME, timeslot=ts, mWh=mWh, limitPrice=limitPrice)
+        print(f"Offer TS: {ts} MWh: {mWh} Price: {limitPrice}")
         dispatcher.send(signals.OUT_PB_ORDER, msg=order)
 
     def _reconcilation_of_demand(self, ts):
@@ -136,21 +135,24 @@ class BalancingActSubAgent(SignalConsumer):
                 customer_demand[customerName] = pred_for_next_24h
 
         net_surplus = []
+
+        if self.has_spare_load and len(self.obtained_load) > 0:
+            print(f"Excess load of {self.obtained_load}")
+            next_highest_rate_customer = max(self.average_rate.items(), key=operator.itemgetter(1))[0]
+            for i in range(24):
+                self.obtained_load[next_highest_rate_customer][i] += self.spare_load[i]
+                self.spare_load[i] = 0
+            self.has_spare_load = False
+
         for future_ts in range(0, 24):
             surplus_customers = []
             deficit_customers = []
             total_surplus = 0
             total_deficit = 0
-            if self.has_spare_load and len(self.obtained_load) > 0:
-                next_highest_rate_customer = max(self.average_rate.items(), key=operator.itemgetter(1))[0]
-                for i in range(24):
-                    self.obtained_load[next_highest_rate_customer][i] += self.spare_load[i]
-                    self.spare_load[i] = 0
-                self.has_spare_load = False
 
             for customerName, demand_24 in customer_demand.items():
                 datetime_idx = (self.current_datetime.weekday() * 24) + self.current_datetime.hour
-                charged_rate = self.subscribed_rate[customerName][datetime_idx]
+                charged_rate = self.subscribed_rate[customerName][datetime_idx] * 1000 # Subscribe_rate is price per KWh , while usage is in price per MWh
                 surplus = self.obtained_load[customerName][future_ts] - demand_24[future_ts]
                 if surplus > 0:
                     total_surplus += surplus
